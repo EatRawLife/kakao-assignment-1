@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Todo</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- 앱 헤더 -->
+      <header class="header">
+        <h1 class="header__title">Todo</h1>
+        <p class="header__subtitle">오늘 할 일을 정리해보세요</p>
+      </header>
+
+      <!-- [추가] 날짜 네비게이션
+           이전/다음 버튼과 현재 선택된 날짜를 표시.
+           오늘 날짜를 보고 있을 때는 '오늘' 배지를 함께 노출. -->
+      <section class="date-nav" id="dateNav">
+        <button class="date-nav__button" id="prevDateButton" aria-label="이전 날짜">&#8249;</button>
+        <div class="date-nav__center">
+          <span class="date-nav__label" id="dateLabel"></span>
+          <span class="date-nav__today-badge hidden" id="todayBadge">오늘</span>
+        </div>
+        <button class="date-nav__button" id="nextDateButton" aria-label="다음 날짜">&#8250;</button>
+      </section>
+
+      <!-- Todo 입력 영역 -->
+      <section class="input-section">
+        <div class="input-wrapper">
+          <input
+            type="text"
+            id="todoInput"
+            class="todo-input"
+            placeholder="새로운 할 일을 입력하세요"
+            maxlength="100"
+          />
+          <button id="addButton" class="add-button">추가</button>
+        </div>
+        <!-- 입력값이 비어있을 때 표시되는 안내 메시지 -->
+        <p id="errorMessage" class="error-message hidden">
+          할 일을 입력한 후 추가해 주세요.
+        </p>
+      </section>
+
+      <!-- 필터 탭 영역 -->
+      <nav class="filter-tabs" id="filterTabs">
+        <button class="filter-tab is-active" data-filter="all">전체</button>
+        <button class="filter-tab" data-filter="active">진행 중</button>
+        <button class="filter-tab" data-filter="completed">완료</button>
+      </nav>
+
+      <!-- Todo 목록 요약 -->
+      <div class="todo-summary" id="todoSummary"></div>
+
+      <!-- Todo 목록 영역 -->
+      <ul class="todo-list" id="todoList"></ul>
+
+      <!-- 할 일이 없을 때 표시되는 빈 상태 메시지 -->
+      <div class="empty-state hidden" id="emptyState">
+        <p id="emptyStateMessage">아직 할 일이 없어요.</p>
+        <p>새로운 할 일을 추가해보세요!</p>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
