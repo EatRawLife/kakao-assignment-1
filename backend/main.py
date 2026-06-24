@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, Text, Boolean, Date
@@ -7,7 +9,9 @@ from pydantic import BaseModel, model_validator
 from datetime import date
 from typing import Optional, List
 
-DATABASE_URL = "sqlite:///./todos.db"
+load_dotenv(".env.local")
+
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./todos.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -57,7 +61,7 @@ app = FastAPI(title="Todo API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[os.environ.get("CORS_ORIGIN", "http://localhost:3000")],
     allow_methods=["*"],
     allow_headers=["*"],
 )

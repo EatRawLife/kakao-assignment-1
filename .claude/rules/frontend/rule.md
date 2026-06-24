@@ -9,18 +9,30 @@
 | 경로                        | 파일                                  | 설명             |
 |-----------------------------|---------------------------------------|------------------|
 | `/todos`                    | `app/todos/page.tsx`                  | Todo 목록 페이지 |
-| `/todos/new`                | `app/todos/new/page.tsx`              | Todo 생성 페이지 |
 | `/todos/[todoId]`           | `app/todos/[todoId]/page.tsx`         | Todo 수정 페이지 |
 | (에러 바운더리)             | `app/todos/error.tsx`                 | 에러 화면        |
 | (로딩 폴백)                 | `app/todos/loading.tsx`               | 로딩 화면        |
 
+## 환경변수
+
+`frontend/.env.local`에 정의. 코드에 URL을 직접 하드코딩하지 않는다.
+
+| 변수명        | 설명                                      |
+|---------------|-------------------------------------------|
+| `BACKEND_URL` | FastAPI 서버 주소 (서버사이드 전용)       |
+| `APP_URL`     | Next.js 앱 주소 (server component fetch용) |
+
+- `NEXT_PUBLIC_` 접두사가 없으므로 브라우저에 노출되지 않는다.
+
+---
+
 ## API 연동 방식: Route Handler 경유
 
-클라이언트(브라우저)는 백엔드(`http://localhost:8000`)를 **직접 호출하지 않는다.**  
+클라이언트(브라우저)는 백엔드를 **직접 호출하지 않는다.**  
 반드시 Next.js Route Handler(`app/api/...route.ts`)를 거쳐 백엔드에 요청한다.
 
 ```
-클라이언트 → /api/todos (route.ts) → http://localhost:8000/todos (FastAPI)
+클라이언트 → /api/todos (route.ts) → $BACKEND_URL/todos (FastAPI)
 ```
 
 ### 이유
@@ -40,23 +52,23 @@
 
 ```ts
 // app/api/todos/route.ts
-const BASE = "http://localhost:8000";
+const BACKEND = process.env.BACKEND_URL ?? "http://localhost:8000";
 
 export async function GET() {
-  const res = await fetch(`${BASE}/todos`);
+  const res = await fetch(`${BACKEND}/todos`);
   const data = await res.json();
   return Response.json(data);
 }
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const res = await fetch(`${BASE}/todos`, {
+  const res = await fetch(`${BACKEND}/todos`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  return Response.json(data, { status: 201 });
+  return Response.json(data, { status: res.status });
 }
 ```
 
@@ -72,14 +84,18 @@ fetch("/api/todos")
 
 ### 서버 컴포넌트에서의 fetch
 
-서버 컴포넌트(`page.tsx`)는 서버 내부에서 실행되므로 백엔드를 직접 호출해도 무방하다.  
-단, 일관성을 위해 Route Handler를 경유하는 방식을 권장한다.
+서버 컴포넌트(`page.tsx`)도 Route Handler를 경유한다. 환경변수 `APP_URL`로 절대 URL을 구성한다.
+
+```ts
+const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+const res = await fetch(`${appUrl}/api/todos`, { cache: "no-store" });
+```
 
 ---
 
 ## 백엔드 엔드포인트 (Route Handler 내부 참조용)
 
-- 백엔드 베이스 URL: `http://localhost:8000`
+- 백엔드 베이스 URL: `process.env.BACKEND_URL`
 - 엔드포인트:
   - `GET /todos` — 전체 목록 (프론트에서 `day` 필드로 필터링)
   - `POST /todos` — 생성 (`innertext`, `day` 필수)
@@ -119,6 +135,83 @@ fetch("/api/todos")
 - 인터랙션이 필요한 UI 부분만 별도 Client Component로 분리하고, Server Component가 데이터를 props로 내려준다.
 - `"use client"`는 컴포넌트 트리의 최대한 **말단(leaf)**에 위치시켜 서버 렌더링 범위를 넓힌다.
 
+## 페이지별 컴포넌트 스펙
+
+### app/todos/page.tsx
+
+컨테이너 제목: **"Todo List"**
+
+`searchParams`로 `date` 쿼리 파라미터를 받아 `TodosClient`에 `initialDate`로 전달한다.
+
+**날짜 필터링 (맨 위)**
+- 중앙에 현재 선택된 날짜 표시 (기본값: 오늘, `?date=YYYY-MM-DD` 쿼리로 초기화 가능)
+- 좌우에 날짜 이동 버튼 — 공유된 `DateNavButton` 컴포넌트 사용
+- 날짜 변경 시 추가 API 요청 없이 클라이언트에서 `allTodos`를 재필터링
+
+**Todo 추가**
+- 중앙 텍스트 입력창 + 우측 제출 버튼 (POST)
+- `innertext`: 입력창 텍스트, `day`: 현재 선택 날짜
+- 비어있으면 요청하지 않고 오류 메시지 출력
+
+**Todo 검색**
+- 검색창 + Enter로 `searchQuery` 상태를 업데이트 → 클라이언트 필터링
+- 비어있으면 요청하지 않고 오류 메시지 출력
+- 날짜 이동 시 검색어 초기화
+
+**상태 필터 버튼 (검색창 아래)**
+- "전체", "실행 중", "완료" 3개 버튼 — 공유된 `FilterButton` 컴포넌트 사용
+- 클릭 시 `activeFilter` 상태 변경 → 클라이언트 필터링 (API 요청 없음)
+
+**필터링 순서**
+```
+allTodos → 날짜(day) → 검색어(innertext 포함) → 완료 상태(complete)
+```
+
+**Todo 목록**
+- 필터링 결과를 상→하로 나열
+- 각 항목은 `TodoItem` 컴포넌트 재사용
+- 좌측: 둥근 체크박스 — 클릭 시 `complete` 토글 PATCH 요청 (`!todo.complete`)
+- 완료 항목(`complete == true`): 텍스트에 취소선
+- 우측: 수정 버튼(해당 `[id]/page.tsx` 이동) + 삭제 버튼(DELETE 요청) — 두 버튼은 동일 `ActionButton` 컴포넌트 사용
+
+---
+
+### app/todos/[todoId]/page.tsx
+
+컨테이너 제목: **"Todo 수정"**
+
+변경 사항을 즉시 전송하지 않고 **클라이언트에서 큐잉**한 뒤, 저장/취소 버튼으로 처리한다.
+
+**컨테이너 1 — 입력 (TodoTextInput 재사용)**
+- Enter 또는 버튼 클릭 시 `pendingTextRef`에 큐잉 + TodoItem 표시 즉시 반영
+- 저장 버튼 클릭 시 `textInputRef.submit()`을 호출해 미입력 텍스트도 자동 큐잉
+
+**컨테이너 2 — Todo 뷰 (TodoItem 재사용)**
+- 기존 Todo 데이터 표시 (로컬 변경 즉시 반영)
+- 수정·삭제 버튼 없음
+- 체크박스 클릭 시 로컬 상태만 토글 (즉시 전송 없음)
+
+**저장 / 취소 버튼 (ActionButton 재사용)**
+- **저장**: 큐잉된 변경분만 모아 PATCH 전송 후 `/todos?date={todo.day}` 리다이렉트
+- **취소**: 요청 없이 `/todos?date={todo.day}` 리다이렉트
+- 변경이 없으면 PATCH 요청 생략
+
+---
+
+## 공유 컴포넌트 목록
+
+| 컴포넌트 | 위치 | 설명 |
+|----------|------|------|
+| `TodoItem` | `app/todos/_components/TodoItem.tsx` | Todo 항목 표시 (체크박스, 텍스트, 액션 버튼) |
+| `ActionButton` | `app/todos/_components/TodoItem.tsx` (export) | 액션 버튼 — `default` / `danger` / `primary` 변형 |
+| `FilterButton` | `app/todos/_components/FilterButton.tsx` | 상태 필터 버튼 |
+| `DateNavButton` | `app/todos/_components/DateNavButton.tsx` | 날짜 이동 버튼 |
+| `TodoTextInput` | `app/todos/_components/TodoTextInput.tsx` | 텍스트 입력 + 제출 (추가·검색·수정 공유), `ref`로 `submit()` 외부 호출 가능 |
+| `TodosClient` | `app/todos/_components/TodosClient.tsx` | todos 페이지 상태·로직 Client Component |
+| `EditTodoClient` | `app/todos/_components/EditTodoClient.tsx` | 수정 페이지 상태·로직 Client Component |
+
+---
+
 ## 파라미터 타입 (App Router)
 
 ```tsx
@@ -129,6 +222,14 @@ type Props = {
 export default async function Page({ params }: Props) {
   const { todoId } = await params;
 }
+
+// 쿼리 파라미터
+type Props = {
+  searchParams: Promise<{ date?: string }>;
+};
+export default async function Page({ searchParams }: Props) {
+  const { date } = await searchParams;
+}
 ```
 
 ## 디자인 규칙
@@ -136,3 +237,4 @@ export default async function Page({ params }: Props) {
 - 메인 컬러: `#672be0`
 - 스타일: 깔끔하고 미니멀한 생산성 앱 스타일
 - Tailwind CSS 유틸리티 클래스 사용
+- 입력 포커스 시: `focus:border-[#672be0] focus:ring-2 focus:ring-[#672be0]/20` 하이라이팅 적용

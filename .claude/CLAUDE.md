@@ -41,6 +41,26 @@ Todo 항목의 핵심 필드:
 - 백엔드는 전체 목록을 반환하고, 날짜별 필터링은 프론트엔드에서 `day` 필드로 수행.
 - 날짜 형식은 `YYYY-MM-DD`로 통일.
 
+### 라우트 구조 (프론트엔드)
+
+| 경로 | 설명 |
+|------|------|
+| `/todos` | Todo 목록·추가·검색·필터 |
+| `/todos/[todoId]` | Todo 수정 |
+
+### 환경변수
+
+민감한 값은 `.env.local`에 분리한다. 코드에 URL·경로를 하드코딩하지 않는다.
+
+| 위치 | 파일 | 변수 |
+|------|------|------|
+| 프론트엔드 | `frontend/.env.local` | `BACKEND_URL`, `APP_URL` |
+| 백엔드 | `backend/.env.local` | `DATABASE_URL`, `CORS_ORIGIN` |
+
+- `.env.local`은 `.gitignore`에 포함되어 커밋되지 않는다.
+- 프론트엔드: Next.js가 자동 로드. `NEXT_PUBLIC_` 없는 변수는 서버사이드 전용.
+- 백엔드: `python-dotenv`의 `load_dotenv(".env.local")`으로 로드.
+
 ### 상세 규칙 위치
 
 - 백엔드: `.claude/rules/backend/rule.md`
