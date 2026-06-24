@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Bash(mkdir -p /home/dog/kakaotech/kakao-assignment-3/frontend/app/todos/new && mkdir -p /home/dog/kakaotech/kakao-assignment-3/frontend/app/todos/\\\\[todoId\\\\])"
+    ],
+    "additionalDirectories": [
+      "/home/dog/kakaotech/kakao-assignment-3/frontend/app/todos"
+    ]
+  }
+}
